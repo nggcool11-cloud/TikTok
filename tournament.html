@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TikTok Live Turnier</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --card: #12121a;
+    --border: #1e1e2e;
+    --accent: #fe2c55;
+    --accent2: #25f4ee;
+    --gold: #ffd700;
+    --silver: #c0c0c0;
+    --bronze: #cd7f32;
+    --text: #ffffff;
+    --muted: #888899;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Rajdhani', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  body::before {
+    content:'';
+    position:fixed; inset:0;
+    background:
+      radial-gradient(ellipse at 20% 20%, rgba(254,44,85,0.08) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 80%, rgba(37,244,238,0.06) 0%, transparent 60%);
+    pointer-events:none; z-index:0;
+  }
+  .container { position:relative; z-index:1; max-width:960px; margin:0 auto; padding:30px 20px; }
+
+  header { text-align:center; margin-bottom:36px; }
+  h1 {
+    font-family:'Bebas Neue',sans-serif;
+    font-size:clamp(2.5rem,8vw,5rem);
+    letter-spacing:4px;
+    background:linear-gradient(90deg,var(--accent),#ff6b6b,var(--accent2));
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+    line-height:1;
+  }
+  .subtitle { color:var(--muted); font-size:.9rem; letter-spacing:3px; text-transform:uppercase; margin-top:6px; }
+
+  .phase-badge {
+    display:inline-flex; align-items:center; gap:8px;
+    background:var(--card); border:1px solid var(--border);
+    border-radius:30px; padding:8px 20px;
+    font-size:.85rem; letter-spacing:2px; text-transform:uppercase;
+    color:var(--muted); margin-bottom:28px; transition:all .4s;
+  }
+  .phase-badge.active { color:var(--accent2); border-color:var(--accent2); }
+  .phase-badge.finale { color:var(--gold); border-color:var(--gold); }
+  .phase-dot { width:8px;height:8px;border-radius:50%;background:var(--muted);transition:all .4s; }
+  .phase-badge.active .phase-dot { background:var(--accent2);box-shadow:0 0 10px var(--accent2);animation:pulse 1s infinite; }
+  .phase-badge.finale .phase-dot { background:var(--gold);box-shadow:0 0 10px var(--gold);animation:pulse 1s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.4)} }
+
+  .timer-section { text-align:center; margin-bottom:36px; }
+  .timer-display {
+    font-family:'Bebas Neue',sans-serif;
+    font-size:clamp(5rem,20vw,10rem);
+    letter-spacing:8px; line-height:1;
+    transition:color .3s; text-shadow:0 0 40px currentColor;
+  }
+  .timer-display.running { color:var(--accent2); }
+  .timer-display.warning { color:#ffaa00; animation:warningPulse .5s infinite; }
+  .timer-display.done { color:var(--accent); }
+  .timer-display.idle { color:var(--border); }
+  @keyframes warningPulse { 0%,100%{opacity:1}50%{opacity:.5} }
+  .timer-label { font-size:.85rem;letter-spacing:4px;text-transform:uppercase;color:var(--muted);margin-top:-5px; }
+  .progress-wrap { width:100%;height:4px;background:var(--border);border-radius:2px;margin:16px 0 28px;overflow:hidden; }
+  .progress-bar { height:100%;width:100%;background:linear-gradient(90deg,var(--accent2),var(--accent));border-radius:2px;transition:width 1s linear;box-shadow:0 0 12px var(--accent2); }
+
+  .btn-group { display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:36px; }
+  .btn { font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:3px;padding:14px 32px;border:none;border-radius:6px;cursor:pointer;transition:all .2s; }
+  .btn-start { background:linear-gradient(135deg,var(--accent),#ff6b6b);color:#fff;box-shadow:0 4px 20px rgba(254,44,85,.4); }
+  .btn-start:hover { transform:translateY(-2px);box-shadow:0 8px 30px rgba(254,44,85,.5); }
+  .btn-reset { background:var(--card);color:var(--muted);border:1px solid var(--border); }
+  .btn-reset:hover { border-color:var(--muted);color:var(--text); }
+  .btn-finale { background:linear-gradient(135deg,#b8860b,var(--gold));color:#000;box-shadow:0 4px 20px rgba(255,215,0,.3);display:none; }
+  .btn-finale:hover { transform:translateY(-2px);box-shadow:0 8px 30px rgba(255,215,0,.5); }
+
+  .status-msg { text-align:center;font-size:.9rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);min-height:22px;margin-bottom:8px;transition:color .3s; }
+  .status-msg.alert { color:var(--accent); }
+  .status-msg.success { color:var(--accent2); }
+
+  .finale-section { display:none;background:linear-gradient(135deg,rgba(255,215,0,.05),rgba(255,215,0,.02));border:1px solid rgba(255,215,0,.3);border-radius:12px;padding:24px;margin-bottom:30px;text-align:center; }
+  .finale-section.visible { display:block; }
+  .finale-title { font-family:'Bebas Neue',sans-serif;font-size:2.5rem;letter-spacing:6px;color:var(--gold);text-shadow:0 0 20px rgba(255,215,0,.5);margin-bottom:8px; }
+  .finale-vs { display:flex;align-items:center;justify-content:center;gap:20px;margin-top:16px;flex-wrap:wrap; }
+  .finalist-chip { background:rgba(255,215,0,.1);border:1px solid rgba(255,215,0,.4);border-radius:8px;padding:10px 20px;font-weight:700;font-size:1.1rem;color:var(--gold); }
+  .vs-text { font-family:'Bebas Neue',sans-serif;font-size:2rem;color:var(--accent);letter-spacing:4px; }
+
+  .divider { border:none;border-top:1px solid var(--border);margin:28px 0; }
+
+  .section-header { display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px; }
+  .section-title { font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:4px;color:var(--muted);text-transform:uppercase; }
+
+  .liga-tabs { display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px; }
+  .liga-tab {
+    font-family:'Bebas Neue',sans-serif;font-size:.85rem;letter-spacing:2px;
+    padding:6px 14px;border-radius:20px;border:1px solid var(--border);
+    background:var(--card);color:var(--muted);cursor:pointer;transition:all .2s;
+  }
+  .liga-tab:hover { border-color:var(--accent2);color:var(--accent2); }
+  .liga-tab.active { background:var(--accent2);color:#000;border-color:var(--accent2); }
+
+  .team-select-grid {
+    display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;
+    margin-bottom:16px;max-height:260px;overflow-y:auto;
+    scrollbar-width:thin;scrollbar-color:var(--border) transparent;
+  }
+  .team-btn {
+    background:var(--card);border:1px solid var(--border);border-radius:6px;
+    padding:10px 12px;font-family:'Rajdhani',sans-serif;font-size:.9rem;font-weight:600;
+    color:var(--muted);cursor:pointer;transition:all .2s;text-align:left;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .team-btn:hover { border-color:var(--accent2);color:var(--text); }
+  .team-btn.in-game { border-color:var(--gold);color:var(--gold);background:rgba(255,215,0,.06);cursor:default; }
+
+  .add-row { display:flex;gap:10px;margin-bottom:28px; }
+  .add-input {
+    flex:1;background:var(--card);border:1px solid var(--border);border-radius:6px;
+    padding:12px 16px;color:var(--text);font-family:'Rajdhani',sans-serif;font-size:1rem;
+    outline:none;transition:border-color .2s;
+  }
+  .add-input:focus { border-color:var(--accent2); }
+  .add-input::placeholder { color:var(--muted); }
+  .btn-add {
+    background:var(--card);border:1px solid var(--accent2);border-radius:6px;
+    color:var(--accent2);font-family:'Bebas Neue',sans-serif;font-size:1rem;
+    letter-spacing:2px;padding:12px 20px;cursor:pointer;transition:all .2s;white-space:nowrap;
+  }
+  .btn-add:hover { background:var(--accent2);color:#000; }
+
+  .teams-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-bottom:30px; }
+  .team-card {
+    background:var(--card);border:1px solid var(--border);border-radius:8px;
+    padding:14px 16px;display:flex;align-items:flex-start;gap:12px;
+    transition:all .3s;position:relative;overflow:hidden;
+  }
+  .team-card::before { content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--border);transition:all .3s; }
+  .team-card.place-1::before { background:var(--gold);box-shadow:0 0 10px var(--gold); }
+  .team-card.place-2::before { background:var(--silver);box-shadow:0 0 10px var(--silver); }
+  .team-card.place-3::before { background:var(--bronze);box-shadow:0 0 10px var(--bronze); }
+  .team-card.finalist { border-color:var(--gold);background:rgba(255,215,0,.05); }
+
+  .team-rank { font-family:'Bebas Neue',sans-serif;font-size:1.6rem;color:var(--border);min-width:28px;transition:color .3s;line-height:1; }
+  .team-card.place-1 .team-rank { color:var(--gold); }
+  .team-card.place-2 .team-rank { color:var(--silver); }
+  .team-card.place-3 .team-rank { color:var(--bronze); }
+
+  .team-info { flex:1;min-width:0; }
+  .team-name { font-weight:700;font-size:1rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px; }
+  .team-liga { font-size:.72rem;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px; }
+
+  .pts-row { display:flex;align-items:center;gap:6px;margin-bottom:6px; }
+  .pts-btn {
+    width:26px;height:26px;background:var(--border);border:none;border-radius:4px;
+    color:var(--text);font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;
+    transition:background .2s;flex-shrink:0;
+  }
+  .pts-btn:hover { background:var(--accent); }
+  .pts-value { font-family:'Bebas Neue',sans-serif;font-size:1.3rem;min-width:36px;text-align:center;color:var(--accent2); }
+  .pts-label { color:var(--muted);font-size:.75rem;letter-spacing:1px; }
+
+  /* BULK INPUT BLOCK */
+  .bulk-block { background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:6px;padding:8px 10px; }
+  .bulk-label { font-size:.72rem;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:6px; }
+  .bulk-row { display:flex;align-items:center;gap:6px; }
+  .bulk-input {
+    width:72px;background:#0a0a0f;border:1px solid var(--border);border-radius:4px;
+    padding:5px 8px;color:var(--text);font-family:'Bebas Neue',sans-serif;font-size:1rem;
+    outline:none;text-align:center;transition:border-color .2s;
+  }
+  .bulk-input:focus { border-color:var(--accent2); }
+  .bulk-add-btn {
+    background:rgba(37,244,238,.12);border:1px solid var(--accent2);border-radius:4px;
+    color:var(--accent2);font-family:'Bebas Neue',sans-serif;font-size:.8rem;
+    letter-spacing:1px;padding:5px 10px;cursor:pointer;transition:all .2s;white-space:nowrap;flex:1;
+  }
+  .bulk-add-btn:hover { background:var(--accent2);color:#000; }
+  .bulk-sub-btn {
+    background:rgba(254,44,85,.1);border:1px solid var(--accent);border-radius:4px;
+    color:var(--accent);font-family:'Bebas Neue',sans-serif;font-size:.8rem;
+    letter-spacing:1px;padding:5px 10px;cursor:pointer;transition:all .2s;white-space:nowrap;flex:1;
+  }
+  .bulk-sub-btn:hover { background:var(--accent);color:#fff; }
+
+  .remove-btn {
+    background:none;border:none;color:var(--muted);cursor:pointer;font-size:1rem;
+    padding:4px;transition:color .2s;flex-shrink:0;align-self:flex-start;
+  }
+  .remove-btn:hover { color:var(--accent); }
+
+  .confetti-piece {
+    position:fixed;width:10px;height:10px;top:-10px;
+    animation:confettiFall linear forwards;border-radius:2px;
+    pointer-events:none;z-index:999;
+  }
+  @keyframes confettiFall { to{transform:translateY(110vh) rotate(720deg);opacity:0} }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <h1>🏟 LIVE TURNIER</h1>
+    <p class="subtitle">TikTok Live · Bundesliga · Punkte · Finale</p>
+  </header>
+
+  <div style="text-align:center">
+    <div class="phase-badge" id="phaseBadge">
+      <div class="phase-dot"></div>
+      <span id="phaseText">Bereit</span>
+    </div>
+  </div>
+
+  <div class="timer-section">
+    <div class="timer-display idle" id="timerDisplay">05:00</div>
+    <div class="timer-label" id="timerLabel">5 Minuten Runde</div>
+    <div class="progress-wrap">
+      <div class="progress-bar" id="progressBar" style="width:100%"></div>
+    </div>
+    <p class="status-msg" id="statusMsg">Teams auswählen und Runde starten</p>
+  </div>
+
+  <div class="btn-group">
+    <button class="btn btn-start" id="btnStart" onclick="startRound()">▶ Runde starten</button>
+    <button class="btn btn-reset" onclick="resetTimer()">↺ Reset</button>
+    <button class="btn btn-finale" id="btnFinale" onclick="startFinale()">🏆 Finale starten</button>
+  </div>
+
+  <div class="finale-section" id="finaleSection">
+    <div class="finale-title">⚔ FINALE ⚔</div>
+    <p style="color:var(--muted);font-size:.9rem;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;">Die Top 2 kämpfen um den Sieg</p>
+    <div class="finale-vs" id="finaleVs"></div>
+  </div>
+
+  <hr class="divider">
+
+  <div class="section-header">
+    <div class="section-title">⚽ Teams auswählen</div>
+  </div>
+
+  <div class="liga-tabs">
+    <button class="liga-tab active" onclick="showLiga('1')">1. Bundesliga</button>
+    <button class="liga-tab" onclick="showLiga('2')">2. Bundesliga</button>
+    <button class="liga-tab" onclick="showLiga('3')">3. Liga</button>
+  </div>
+
+  <div class="team-select-grid" id="teamSelectGrid"></div>
+
+  <div class="add-row">
+    <input class="add-input" id="customTeamInput" placeholder="Eigenes Team hinzufügen..." onkeydown="if(event.key==='Enter')addCustomTeam()" maxlength="30">
+    <button class="btn-add" onclick="addCustomTeam()">+ Hinzufügen</button>
+  </div>
+
+  <hr class="divider">
+
+  <div class="section-header">
+    <div class="section-title">🏆 Im Turnier</div>
+    <span id="teamCount" style="color:var(--muted);font-size:.85rem;letter-spacing:2px;"></span>
+  </div>
+
+  <div class="teams-grid" id="teamsGrid"></div>
+
+</div>
+
+<script>
+const BUNDESLIGA = {
+  '1': [
+    'Bayern München','Borussia Dortmund','Bayer Leverkusen','RB Leipzig',
+    'Borussia M\'gladbach','Eintracht Frankfurt','VfL Wolfsburg','SC Freiburg',
+    'Union Berlin','FC Augsburg','VfB Stuttgart','TSG Hoffenheim',
+    'Werder Bremen','1. FC Heidenheim','VfL Bochum','FC St. Pauli',
+    '1. FC Mainz 05','Holstein Kiel'
+  ],
+  '2': [
+    'Hamburger SV','Fortuna Düsseldorf','Karlsruher SC','Hannover 96',
+    'Hertha BSC','SpVgg Greuther Fürth','1. FC Kaiserslautern','FC Schalke 04',
+    'SV Darmstadt 98','1. FC Magdeburg','1. FC Nürnberg','SSV Ulm 1846',
+    'SC Paderborn 07','Eintracht Braunschweig','Preußen Münster','1. FC Köln',
+    'SV Elversberg','Jahn Regensburg'
+  ],
+  '3': [
+    'Dynamo Dresden','MSV Duisburg','Hallescher FC','Rot-Weiss Essen',
+    'VfL Osnabrück','SpVgg Unterhaching','Erzgebirge Aue','TSV 1860 München',
+    'BVB II','SC Verl','Alemannia Aachen','VfB Stuttgart II',
+    'SV Waldhof Mannheim','SV Wehen Wiesbaden','FC Ingolstadt 04',
+    'Viktoria Köln','FC Energie Cottbus','Arminia Bielefeld',
+    'Borussia Dortmund II','SV Sandhausen'
+  ]
+};
+
+let currentLiga = '1';
+let teams = [];
+let totalSeconds = 5*60, remaining = 5*60;
+let interval = null, isRunning = false, isFinale = false, roundDone = false;
+
+function showLiga(liga) {
+  currentLiga = liga;
+  document.querySelectorAll('.liga-tab').forEach((t,i) => {
+    t.classList.toggle('active', ['1','2','3'][i] === liga);
+  });
+  renderTeamSelect();
+}
+
+function renderTeamSelect() {
+  const grid = document.getElementById('teamSelectGrid');
+  grid.innerHTML = '';
+  BUNDESLIGA[currentLiga].forEach(name => {
+    const inGame = teams.some(t => t.name === name);
+    const btn = document.createElement('button');
+    btn.className = 'team-btn' + (inGame ? ' in-game' : '');
+    btn.textContent = (inGame ? '✓ ' : '') + name;
+    btn.title = inGame ? 'Bereits im Turnier' : 'Klicken um hinzuzufügen';
+    if (!inGame) {
+      btn.onclick = () => {
+        teams.push({ name, pts: 0, liga: currentLiga + '. Bundesliga' });
+        renderTeamSelect();
+        renderTeams();
+      };
+    }
+    grid.appendChild(btn);
+  });
+}
+
+function addCustomTeam() {
+  const inp = document.getElementById('customTeamInput');
+  const name = inp.value.trim();
+  if (!name || teams.some(t => t.name === name)) { inp.value=''; return; }
+  teams.push({ name, pts: 0, liga: 'Eigenes Team' });
+  inp.value = '';
+  renderTeams();
+  renderTeamSelect();
+  inp.focus();
+}
+
+function renderTeams() {
+  const sorted = [...teams].map((t,i) => ({...t, origIdx:i})).sort((a,b) => b.pts - a.pts);
+  const grid = document.getElementById('teamsGrid');
+  grid.innerHTML = '';
+  document.getElementById('teamCount').textContent = teams.length ? teams.length + ' Teams' : '';
+
+  if (!teams.length) {
+    grid.innerHTML = '<div style="color:var(--muted);font-size:.9rem;letter-spacing:2px;padding:20px 0;grid-column:1/-1;text-align:center;">WÄHLE TEAMS AUS DER LISTE OBEN</div>';
+    return;
+  }
+
+  sorted.forEach((t, rank) => {
+    const card = document.createElement('div');
+    card.className = 'team-card' +
+      (rank===0?' place-1':rank===1?' place-2':rank===2?' place-3':'');
+    if (isFinale && rank < 2) card.classList.add('finalist');
+
+    const medal = rank===0?'🥇 ':rank===1?'🥈 ':rank===2?'🥉 ':'';
+
+    card.innerHTML = `
+      <div class="team-rank">${rank+1}</div>
+      <div class="team-info">
+        <div class="team-name">${medal}${t.name}</div>
+        <div class="team-liga">${t.liga}</div>
+        <div class="pts-row">
+          <button class="pts-btn" onclick="chg(${t.origIdx},-1)">−</button>
+          <div class="pts-value">${t.pts}</div>
+          <button class="pts-btn" onclick="chg(${t.origIdx},1)">+</button>
+          <span class="pts-label">PUNKTE</span>
+        </div>
+        <div class="bulk-block">
+          <div class="bulk-label">🌹 Rosen / Menge eingeben</div>
+          <div class="bulk-row">
+            <input class="bulk-input" id="bulk-${t.origIdx}" type="number" min="1" value="500">
+            <button class="bulk-add-btn" onclick="bulkAdd(${t.origIdx})">+ Hinzufügen</button>
+            <button class="bulk-sub-btn" onclick="bulkSub(${t.origIdx})">− Abziehen</button>
+          </div>
+        </div>
+      </div>
+      <button class="remove-btn" onclick="removeTeam(${t.origIdx})" title="Entfernen">✕</button>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+function chg(idx, delta) {
+  teams[idx].pts = Math.max(0, teams[idx].pts + delta);
+  renderTeams();
+}
+
+function bulkAdd(idx) {
+  const inp = document.getElementById('bulk-'+idx);
+  const val = parseInt(inp.value) || 0;
+  if (val > 0) { teams[idx].pts += val; renderTeams(); }
+}
+
+function bulkSub(idx) {
+  const inp = document.getElementById('bulk-'+idx);
+  const val = parseInt(inp.value) || 0;
+  if (val > 0) { teams[idx].pts = Math.max(0, teams[idx].pts - val); renderTeams(); }
+}
+
+function removeTeam(idx) {
+  teams.splice(idx, 1);
+  renderTeams();
+  renderTeamSelect();
+}
+
+function pad(n) { return String(n).padStart(2,'0'); }
+function fmt(s) { return pad(Math.floor(s/60))+':'+pad(s%60); }
+
+function updateTimerDisplay() {
+  const el = document.getElementById('timerDisplay');
+  el.textContent = fmt(remaining);
+  el.className = 'timer-display';
+  if (!isRunning && remaining===totalSeconds) el.classList.add('idle');
+  else if (remaining===0) el.classList.add('done');
+  else if (remaining<=30) el.classList.add('warning');
+  else el.classList.add('running');
+  document.getElementById('progressBar').style.width = (remaining/totalSeconds*100)+'%';
+}
+
+function setStatus(msg, type='') {
+  const el = document.getElementById('statusMsg');
+  el.textContent = msg; el.className = 'status-msg'+(type?' '+type:'');
+}
+
+function setPhase(text, type='') {
+  document.getElementById('phaseText').textContent = text;
+  document.getElementById('phaseBadge').className = 'phase-badge'+(type?' '+type:'');
+}
+
+function startRound() {
+  if (isRunning) return;
+  if (remaining===0) remaining = totalSeconds;
+  isRunning = true; roundDone = false;
+  setPhase(isFinale?'Finale läuft':'Runde läuft','active');
+  setStatus(isFinale?'⚔ FINALE läuft!':'🟢 Runde läuft!','success');
+  document.getElementById('timerLabel').textContent = isFinale?'Finale – 5 Minuten':'5 Minuten Runde';
+  document.getElementById('btnStart').textContent = '⏸ Läuft...';
+  document.getElementById('btnStart').disabled = true;
+  interval = setInterval(()=>{
+    remaining--;
+    updateTimerDisplay();
+    if (remaining<=30 && remaining>0) setStatus('⚠ Weniger als 30 Sekunden!','alert');
+    if (remaining===0) {
+      clearInterval(interval); isRunning=false; roundDone=true;
+      document.getElementById('btnStart').textContent='▶ Runde starten';
+      document.getElementById('btnStart').disabled=false;
+      if (isFinale) {
+        setPhase('Finale beendet','finale');
+        setStatus('🏆 Das Finale ist vorbei! Der Gewinner steht fest!','success');
+        launchConfetti();
+      } else {
+        setPhase('Runde beendet','');
+        setStatus('Runde beendet! Punkte vergeben & Finale starten.','success');
+        document.getElementById('btnFinale').style.display='inline-block';
+      }
+    }
+  },1000);
+}
+
+function resetTimer() {
+  clearInterval(interval); isRunning=false; remaining=totalSeconds;
+  updateTimerDisplay();
+  setPhase('Bereit','');
+  setStatus('Teams auswählen und Runde starten');
+  document.getElementById('btnStart').textContent='▶ Runde starten';
+  document.getElementById('btnStart').disabled=false;
+  document.getElementById('timerLabel').textContent='5 Minuten Runde';
+  document.getElementById('finaleSection').classList.remove('visible');
+  document.getElementById('btnFinale').style.display='none';
+  isFinale=false; roundDone=false;
+}
+
+function startFinale() {
+  isFinale=true; remaining=totalSeconds; roundDone=false;
+  updateTimerDisplay();
+  const sorted=[...teams].sort((a,b)=>b.pts-a.pts);
+  document.getElementById('finaleSection').classList.add('visible');
+  document.getElementById('finaleVs').innerHTML=`
+    <div class="finalist-chip">🥇 ${sorted[0]?sorted[0].name:'?'}</div>
+    <div class="vs-text">VS</div>
+    <div class="finalist-chip">🥈 ${sorted[1]?sorted[1].name:'?'}</div>
+  `;
+  setPhase('Finale','finale');
+  setStatus('⚔ Finale bereit – jetzt starten!','success');
+  document.getElementById('timerLabel').textContent='Finale – 5 Minuten';
+  document.getElementById('btnFinale').style.display='none';
+  document.getElementById('btnStart').textContent='▶ Finale starten';
+  document.getElementById('btnStart').disabled=false;
+  renderTeams();
+}
+
+function launchConfetti() {
+  const colors=['#fe2c55','#25f4ee','#ffd700','#ff6b6b','#ffffff'];
+  for(let i=0;i<80;i++){
+    const el=document.createElement('div');
+    el.className='confetti-piece';
+    el.style.left=Math.random()*100+'vw';
+    el.style.background=colors[Math.floor(Math.random()*colors.length)];
+    el.style.width=(8+Math.random()*8)+'px';
+    el.style.height=(8+Math.random()*8)+'px';
+    el.style.animationDuration=(2+Math.random()*3)+'s';
+    el.style.animationDelay=(Math.random()*1.5)+'s';
+    document.body.appendChild(el);
+    setTimeout(()=>el.remove(),6000);
+  }
+}
+
+updateTimerDisplay();
+renderTeamSelect();
+renderTeams();
+</script>
+</body>
+</html>
